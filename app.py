@@ -5,7 +5,7 @@ app = Flask(__name__)
 # -----------------------------
 # Risk Calculation Function
 # -----------------------------
-def calculate_diabetes_risk(age, gender, family, rbs, hba1c, bmi, fbs, ppbs, ogtt):
+def calculate_diabetes_risk(age, gender, family, rbs, hba1c, bmi, fbs, ppbs, ogtt, bp, chol_med, pcos):
     score = 0
 
     # Age
@@ -52,11 +52,23 @@ def calculate_diabetes_risk(age, gender, family, rbs, hba1c, bmi, fbs, ppbs, ogt
     elif ppbs >= 140:
         score += 10
 
-    # OGTT (2-hour value)
+    # OGTT
     if ogtt >= 200:
         score += 25
     elif ogtt >= 140:
         score += 12
+
+    # Hypertension
+    if bp == "yes":
+        score += 10
+
+    # Cholesterol medication
+    if chol_med == "yes":
+        score += 10
+
+    # PCOS (only for females)
+    if gender == "female" and pcos == "yes":
+        score += 10
 
     return min(score,100)
 
@@ -70,7 +82,7 @@ HTML_PAGE = """
 <html>
 <head>
 
-<title>Diabetes Risk Predictor</title>
+<title>Type 2 Diabetes Risk Predictor</title>
 
 <style>
 
@@ -176,12 +188,6 @@ font-size:14px;
 text-align:left;
 }
 
-.info{
-font-size:12px;
-color:#666;
-margin-top:4px;
-}
-
 .disclaimer{
 margin-top:15px;
 font-size:12px;
@@ -196,7 +202,7 @@ text-align:center;
 
 <div class="container">
 
-<h2>Diabetes Risk Predictor</h2>
+<h2>Type 2 Diabetes Risk Predictor</h2>
 
 <form method="POST">
 
@@ -204,7 +210,7 @@ text-align:center;
 <input type="number" name="age" required>
 
 <label>Gender</label>
-<select name="gender">
+<select name="gender" id="gender">
 <option value="male">Male</option>
 <option value="female">Female</option>
 </select>
@@ -217,26 +223,43 @@ text-align:center;
 
 <label>Random Blood Sugar (mg/dL)</label>
 <input type="number" name="rbs" required>
-<div class="info">Normal <140</div>
 
 <label>HbA1c (%)</label>
 <input type="number" step="0.1" name="hba1c" required>
-<div class="info">Normal <5.7%</div>
 
 <label>BMI</label>
 <input type="number" step="0.1" name="bmi" required>
 
 <label>Fasting Blood Sugar (mg/dL)</label>
 <input type="number" name="fbs" required>
-<div class="info">Normal <100</div>
 
 <label>Post Prandial Blood Sugar (mg/dL)</label>
 <input type="number" name="ppbs" required>
-<div class="info">Normal <140</div>
 
 <label>OGTT (2-Hour Glucose mg/dL)</label>
 <input type="number" name="ogtt" required>
-<div class="info">Normal <140</div>
+
+<label>Do you have Hypertension (High BP)?</label>
+<select name="bp">
+<option value="no">No</option>
+<option value="yes">Yes</option>
+</select>
+
+<label>Are you using Cholesterol Medication?</label>
+<select name="chol_med">
+<option value="no">No</option>
+<option value="yes">Yes</option>
+</select>
+
+<div id="pcos_field">
+
+<label>Do you have PCOS?</label>
+<select name="pcos">
+<option value="no">No</option>
+<option value="yes">Yes</option>
+</select>
+
+</div>
 
 <button type="submit">Predict Risk</button>
 
@@ -273,6 +296,24 @@ Educational tool only. Not a medical diagnosis. Consult healthcare professional.
 
 </div>
 
+<script>
+
+const gender = document.getElementById("gender");
+const pcosField = document.getElementById("pcos_field");
+
+function togglePCOS(){
+if(gender.value === "female"){
+pcosField.style.display = "block";
+}else{
+pcosField.style.display = "none";
+}
+}
+
+gender.addEventListener("change",togglePCOS);
+togglePCOS();
+
+</script>
+
 </body>
 </html>
 
@@ -300,8 +341,11 @@ def index():
         fbs=float(request.form["fbs"])
         ppbs=float(request.form["ppbs"])
         ogtt=float(request.form["ogtt"])
+        bp=request.form["bp"]
+        chol_med=request.form["chol_med"]
+        pcos=request.form.get("pcos","no")
 
-        score=calculate_diabetes_risk(age,gender,family,rbs,hba1c,bmi,fbs,ppbs,ogtt)
+        score=calculate_diabetes_risk(age,gender,family,rbs,hba1c,bmi,fbs,ppbs,ogtt,bp,chol_med,pcos)
 
         if score>=70:
             result=f"High Risk ({score}%)"
@@ -322,4 +366,4 @@ def index():
 
 
 if __name__=="__main__":
-    app.run(debug=True)
+    app.run(debug=True)   
