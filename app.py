@@ -6,82 +6,86 @@ app = Flask(__name__)
 # Risk Calculation Function
 # -----------------------------
 def calculate_diabetes_risk(age, gender, family, rbs, hba1c, bmi, fbs, ppbs, ogtt, bp, chol_med, pcos):
+
     score = 0
 
-    # Age
     if age >= 45:
         score += 15
     elif age >= 35:
         score += 10
 
-    # Gender
     if gender == "male":
         score += 5
 
-    # Family History
     if family == "yes":
         score += 15
 
-    # Random Blood Sugar
-    if rbs >= 200:
-        score += 25
-    elif rbs >= 140:
-        score += 12
+    if rbs:
+        if rbs >= 200:
+            score += 25
+        elif rbs >= 140:
+            score += 12
 
-    # HbA1c
-    if hba1c >= 6.5:
-        score += 25
-    elif hba1c >= 5.7:
-        score += 12
+    if hba1c:
+        if hba1c >= 6.5:
+            score += 25
+        elif hba1c >= 5.7:
+            score += 12
 
-    # BMI
-    if bmi >= 30:
-        score += 20
-    elif bmi >= 25:
-        score += 10
+    if bmi:
+        if bmi >= 30:
+            score += 20
+        elif bmi >= 25:
+            score += 10
 
-    # FBS
-    if fbs >= 126:
-        score += 20
-    elif fbs >= 100:
-        score += 10
+    if fbs:
+        if fbs >= 126:
+            score += 20
+        elif fbs >= 100:
+            score += 10
 
-    # PPBS
-    if ppbs >= 200:
-        score += 20
-    elif ppbs >= 140:
-        score += 10
+    if ppbs:
+        if ppbs >= 200:
+            score += 20
+        elif ppbs >= 140:
+            score += 10
 
-    # OGTT
-    if ogtt >= 200:
-        score += 25
-    elif ogtt >= 140:
-        score += 12
+    if ogtt:
+        if ogtt >= 200:
+            score += 25
+        elif ogtt >= 140:
+            score += 12
 
-    # Hypertension
     if bp == "yes":
         score += 10
 
-    # Cholesterol medication
     if chol_med == "yes":
         score += 10
 
-    # PCOS (only for females)
     if gender == "female" and pcos == "yes":
         score += 10
 
-    return min(score,100)
+    return min(score, 100)
 
 
 # -----------------------------
-# HTML UI
+# Helper function
+# -----------------------------
+def get_float(value):
+    try:
+        return float(value)
+    except:
+        return None
+
+
+# -----------------------------
+# HTML
 # -----------------------------
 HTML_PAGE = """
 
 <!DOCTYPE html>
 <html>
 <head>
-
 <title>Type 2 Diabetes Risk Predictor</title>
 
 <style>
@@ -107,7 +111,6 @@ box-shadow:0 10px 30px rgba(0,0,0,0.15);
 h2{
 text-align:center;
 color:#1565c0;
-margin-bottom:20px;
 }
 
 label{
@@ -175,17 +178,10 @@ height:100%;
 background:linear-gradient(90deg,green,yellow,red);
 }
 
-.legend{
-display:flex;
-justify-content:space-between;
-font-size:12px;
-margin-top:6px;
-}
-
-.tips{
-margin-top:15px;
-font-size:14px;
-text-align:left;
+.missing{
+color:red;
+font-size:13px;
+margin-top:10px;
 }
 
 .disclaimer{
@@ -210,56 +206,52 @@ text-align:center;
 <input type="number" name="age" required>
 
 <label>Gender</label>
-<select name="gender" id="gender">
+<select name="gender">
 <option value="male">Male</option>
 <option value="female">Female</option>
 </select>
 
-<label>Family History of Diabetes</label>
+<label>Family History</label>
 <select name="family">
 <option value="no">No</option>
 <option value="yes">Yes</option>
 </select>
 
 <label>Random Blood Sugar (mg/dL)</label>
-<input type="number" name="rbs" required>
+<input type="number" name="rbs">
 
 <label>HbA1c (%)</label>
-<input type="number" step="0.1" name="hba1c" required>
+<input type="number" step="0.1" name="hba1c">
 
 <label>BMI</label>
-<input type="number" step="0.1" name="bmi" required>
+<input type="number" step="0.1" name="bmi">
 
-<label>Fasting Blood Sugar (mg/dL)</label>
-<input type="number" name="fbs" required>
+<label>Fasting Blood Sugar</label>
+<input type="number" name="fbs">
 
-<label>Post Prandial Blood Sugar (mg/dL)</label>
-<input type="number" name="ppbs" required>
+<label>Post Prandial Blood Sugar</label>
+<input type="number" name="ppbs">
 
-<label>OGTT (2-Hour Glucose mg/dL)</label>
-<input type="number" name="ogtt" required>
+<label>OGTT</label>
+<input type="number" name="ogtt">
 
-<label>Do you have Hypertension (High BP)?</label>
+<label>High BP?</label>
 <select name="bp">
 <option value="no">No</option>
 <option value="yes">Yes</option>
 </select>
 
-<label>Are you using Cholesterol Medication?</label>
+<label>Using Cholesterol Medication?</label>
 <select name="chol_med">
 <option value="no">No</option>
 <option value="yes">Yes</option>
 </select>
 
-<div id="pcos_field">
-
-<label>Do you have PCOS?</label>
+<label>PCOS (Females Only)</label>
 <select name="pcos">
 <option value="no">No</option>
 <option value="yes">Yes</option>
 </select>
-
-</div>
 
 <button type="submit">Predict Risk</button>
 
@@ -275,95 +267,89 @@ text-align:center;
 <div class="progress-bar" style="width:{{score}}%"></div>
 </div>
 
-<div class="legend">
-<span style="color:green;">Low</span>
-<span style="color:orange;">Moderate</span>
-<span style="color:red;">High</span>
-</div>
+<p>{{tips}}</p>
 
-<div class="tips">
-<b>Recommendations:</b><br>
-{{tips}}
+{% if missing %}
+<div class="missing">
+Missing tests: {{missing}} <br>
+Please perform these tests for more accurate prediction.
 </div>
+{% endif %}
 
 </div>
 
 {% endif %}
 
 <div class="disclaimer">
-Educational tool only. Not a medical diagnosis. Consult healthcare professional.
+Educational tool only. Not a medical diagnosis.
 </div>
 
 </div>
-
-<script>
-
-const gender = document.getElementById("gender");
-const pcosField = document.getElementById("pcos_field");
-
-function togglePCOS(){
-if(gender.value === "female"){
-pcosField.style.display = "block";
-}else{
-pcosField.style.display = "none";
-}
-}
-
-gender.addEventListener("change",togglePCOS);
-togglePCOS();
-
-</script>
 
 </body>
 </html>
-
 """
 
 # -----------------------------
 # Main Route
 # -----------------------------
-@app.route("/", methods=["GET","POST"])
+@app.route("/", methods=["GET", "POST"])
 def index():
 
     result=None
     risk_class=""
     score=0
     tips=""
+    missing=""
 
     if request.method=="POST":
 
         age=int(request.form["age"])
         gender=request.form["gender"]
         family=request.form["family"]
-        rbs=float(request.form["rbs"])
-        hba1c=float(request.form["hba1c"])
-        bmi=float(request.form["bmi"])
-        fbs=float(request.form["fbs"])
-        ppbs=float(request.form["ppbs"])
-        ogtt=float(request.form["ogtt"])
+
+        rbs=get_float(request.form.get("rbs"))
+        hba1c=get_float(request.form.get("hba1c"))
+        bmi=get_float(request.form.get("bmi"))
+        fbs=get_float(request.form.get("fbs"))
+        ppbs=get_float(request.form.get("ppbs"))
+        ogtt=get_float(request.form.get("ogtt"))
+
         bp=request.form["bp"]
         chol_med=request.form["chol_med"]
         pcos=request.form.get("pcos","no")
+
+        if gender=="male":
+            pcos="no"
 
         score=calculate_diabetes_risk(age,gender,family,rbs,hba1c,bmi,fbs,ppbs,ogtt,bp,chol_med,pcos)
 
         if score>=70:
             result=f"High Risk ({score}%)"
             risk_class="high"
-            tips="Consult doctor. Confirm with laboratory tests and medical evaluation."
+            tips="Consult doctor and confirm with lab tests."
 
         elif score>=40:
             result=f"Moderate Risk ({score}%)"
             risk_class="moderate"
-            tips="Improve diet, exercise regularly and monitor blood glucose."
+            tips="Improve diet and exercise regularly."
 
         else:
             result=f"Low Risk ({score}%)"
             risk_class="low"
-            tips="Maintain healthy lifestyle and routine screening."
+            tips="Maintain healthy lifestyle."
 
-    return render_template_string(HTML_PAGE,result=result,risk_class=risk_class,score=score,tips=tips)
+        missing_tests=[]
+        if not rbs: missing_tests.append("RBS")
+        if not hba1c: missing_tests.append("HbA1c")
+        if not fbs: missing_tests.append("FBS")
+        if not ppbs: missing_tests.append("PPBS")
+        if not ogtt: missing_tests.append("OGTT")
+
+        missing=", ".join(missing_tests)
+
+    return render_template_string(HTML_PAGE,result=result,risk_class=risk_class,score=score,tips=tips,missing=missing)
 
 
 if __name__=="__main__":
-    app.run(debug=True)   
+    app.run(debug=True)
